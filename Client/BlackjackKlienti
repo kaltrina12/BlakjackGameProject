@@ -1,0 +1,446 @@
+package BlackjackKlienti;
+
+import java.util.concurrent.ExecutionException;
+
+import javax.swing.SwingWorker;
+
+
+ //Objektet e  BlackjackKlienti konektohhen me  Blackjack server dhe koordinojne client model dhe  view.
+ 
+
+
+public class BlackjackKlienti {
+    private static final String DEFAULT_SERVER_ADRESA = "localhost";   // default server address
+    private static final int DEFAULT_SERVER_PORTI = 8080;               // default server port
+    private String serverAdresa;                                       // server address
+    private int portServeri;                                             // server port
+    private BlackjackKlientiModel model;                                 // client GUI model
+    private BlackjackKlientiView view;                                   // client GUI view
+
+   
+    
+//constructor
+    
+    public BlackjackKlienti(String serverAdresa, int portServeri) {
+        this.serverAdresa = serverAdresa;
+        this.portServeri = portServeri;
+    }
+
+    
+   
+    //vendos GUIn e clientit edhe e merr mesazhin e par prej serverit
+     
+
+    public void fillo(){
+        System.out.println("Starting Blackjack client\nServer address: " + serverAdresa + "\nServer port: " + portServeri);
+        model = new BlackjackKlientiModel(serverAdresa, portServeri);
+        view = new BlackjackKlientiView(this);
+        merrMesazhinEserverit();
+    }
+
+  
+
+    //merr mesazh prej serverit edhe e thirr metoden 'ndryshPamjen' 
+   
+    private void merrMesazhinEserverit() {
+        SwingWorker sw = new SwingWorker<String, String>()//T - tipi i rezultatit i 
+        		//kthyer nga kjo SwingWorker 
+        		//doInBackground dhe për të marrë metoda
+        		//V - lloji i përdorur për kryerjen e rezultateve të ndërmjetme nga
+        		//këto metoda të publikimit dhe përpunimit të SwingWorker
+        		{
+            @Override                                            
+            public String doInBackground() throws Exception { 
+                return model.merrMesazhinEserverit();
+            }
+
+            @Override
+            public void done() {
+                try {
+                    ndryshPamjen(get());
+                } catch (InterruptedException | ExecutionException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        sw.execute();
+    }
+
+    
+    //e ndryshon pamjen e clientit bazuar se cilin mesazh e marrim prej serverit
+
+    private void ndryshPamjen (String mesazhiIserverit) {
+        String[] serverMsgComponents = mesazhiIserverit.split("--");   // varg qe permban komponentet e mesazhit te serverit
+        switch (serverMsgComponents[1]) {
+            case "WELCOME!":
+                view.tregoWelcomePanelin();
+                merrMesazhinEserverit();
+                break;
+            case "GETBET!":
+                view.vendosWelcomePritjen(false);
+                view.vendosPritjenPerVazhdimLoje(false);
+                view.tregoPanelinEbastit();
+                view.vendosBastinEparaveLbl(serverMsgComponents[2]);
+                view.tregoMinEbastitLbl(serverMsgComponents[3]);
+                merrMesazhinEserverit();
+                break;
+            case "BETRESPONSE!":
+                switch (serverMsgComponents[2]) {
+                    case "INVALID!":
+                        view.errorBasti("Your basti must be a positive whole number...");
+                        merrMesazhinEserverit();
+                        break;
+                    case "TOOMUCH!":
+                        view.errorBasti("You cannot basti more parate than you have...");
+                        merrMesazhinEserverit();
+                        break;
+                    case "MINIMUM!":
+                        view.errorBasti("You must basti at least the minimum amount...");
+                        merrMesazhinEserverit();
+                        break;
+                    case "SUCCESS!!":
+                        view.bastIsukssesshem();
+                        view.vendosBastinEparaveLbl(serverMsgComponents[3]);
+                        merrMesazhinEserverit();
+                        break;
+                }
+                break;
+            case "NEWROUND!":
+                view.vendosjaEbastitNePritje(false);
+                view.tregoPanelinErradhes();
+                view.ktheParateLbl(serverMsgComponents[2]);
+                merrMesazhinEserverit();
+                break;
+            case "BLACKJACK!!!":
+                switch (serverMsgComponents[2]) {
+                    case "PLAYERANDDEALER!":
+                        view.vendosBlackjackLbl("You and the dealer both have Blackjack!");
+                        merrMesazhinEserverit();
+                        break;
+                    case "PLAYER":
+                        view.vendosBlackjackLbl("You have Blackjack!");
+                        merrMesazhinEserverit();
+                        break;
+                    case "DEALER":
+                        view.vendosBlackjackLbl("The dealer has Blackjack!");
+                        merrMesazhinEserverit();
+                        break;
+                    case "DEALERNOBLACKJACK!!!":
+                        view.vendosBlackjackLbl("The dealer does not have Blackjack.");
+                        merrMesazhinEserverit();
+                        break;
+                }
+                break;
+            case "NEWDEALERCARD":
+                view.shtoLeterDealerit(model.merrImazhinEletresLbl(serverMsgComponents[2]));
+                merrMesazhinEserverit();
+                break;
+            case "GETINSURANCEBET":
+                view.mundesoBastInsurace();
+                merrMesazhinEserverit();
+                break;
+            case "INSURANCEBETRESPONSE!":
+                switch (serverMsgComponents[2]) {
+                    case "ERROR":
+                        view.errorNeBastinPerInsurance();
+                        merrMesazhinEserverit();
+                        break;
+                    case "PLACED":
+                        view.bastInsuranceIsuksesshem();
+                        view.vendosMesazhinLbl("Insurance Bet: $" + serverMsgComponents[3]);
+                        view.ktheParateLbl(serverMsgComponents[4]);
+                        merrMesazhinEserverit();
+                        break;
+                    case "NOTPLACED":
+                        view.bastInsuranceIsuksesshem();
+                        view.largoInfoPrejInsuranceBastit();
+                        merrMesazhinEserverit();
+                        break;
+                }
+                break;
+            case "CANNOTINSURANCEBET":
+                view.vendosMesazhinLbl("You do not have enough parate to place an insurance basti.");
+                merrMesazhinEserverit();
+                break;
+            case "INSURANCEBETWON":
+                view.vendosMesazhinLbl("You won $" + serverMsgComponents[2] + " from your insurance basti.");
+                view.ktheParateLbl(serverMsgComponents[3]);
+                merrMesazhinEserverit();
+                break;
+            case "INSURANCEBETLOST":
+                view.vendosMesazhinLbl("You lost your insurance basti.");
+                merrMesazhinEserverit();
+                break;
+            case "INSURANCEBETDONE":
+                view.vendosBastinInsuranceNePritje(false);
+                merrMesazhinEserverit();
+                break;
+            case "TAKETURN":
+                view.vendosPritjenErradhes(false);
+                view.largoInfoPrejInsuranceBastit();
+                merrMesazhinEserverit();
+                break;
+            case "NEWHAND":
+                model.shtoLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[2]), new BlacJackHandPanel(this));
+                view.shtoLojtaritHandPanelin(model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[2])), Integer.parseInt(serverMsgComponents[2]));
+                merrMesazhinEserverit();
+                break;
+            case "REMOVEHAND":
+                view.largoLojtaritHandPanelin(model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[2])));
+                model.largoLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[2]));
+                merrMesazhinEserverit();
+                break;
+            case "HANDBET":
+                model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[2])).vendosBastinPerHand(serverMsgComponents[3]);
+                merrMesazhinEserverit();
+                break;
+            case "HANDVALUE":
+                model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[2])).vendosVlerenEhandLbl(serverMsgComponents[3]);
+                merrMesazhinEserverit();
+                break;
+            case "TURNBLACKJACK!!!":
+                switch (serverMsgComponents[2]) {
+                    case "PLAYERANDDEALER!":
+                        view.vendosBlackjackLbl("You and the dealer both have Blackjack!");
+                        merrMesazhinEserverit();
+                        break;
+                    case "PLAYER":
+                        view.vendosBlackjackLbl("You have Blackjack!");
+                        merrMesazhinEserverit();
+                        break;
+                    case "DEALER":
+                        view.vendosBlackjackLbl("The dealer has Blackjack!");
+                        merrMesazhinEserverit();
+                        break;
+                }
+                break;
+            case "NEWPLAYERCARD":
+                model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[2])).shtoLeter(model.merrImazhinEletresLbl(serverMsgComponents[3]));
+                merrMesazhinEserverit();
+                break;
+            case "TURNOPTION":
+                switch (serverMsgComponents[2]) {
+                    case "BOTH":
+                        model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[3])).mundesoNdarhenE2shes();
+                        model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[3])).mundesoDoubleDown();
+                        model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[3])).mundesoHitDheStand();
+                        merrMesazhinEserverit();
+                        break;
+                    case "SPLITPAIRS":
+                        model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[3])).mundesoNdarhenE2shes();
+                        model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[3])).mundesoHitDheStand();
+                        merrMesazhinEserverit();
+                        break;
+                    case "DOUBLEDOWN":
+                        model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[3])).mundesoDoubleDown();
+                        model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[3])).mundesoHitDheStand();
+                        merrMesazhinEserverit();
+                        break;
+                    case "NEITHER":
+                        model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[3])).mundesoHitDheStand();
+                        merrMesazhinEserverit();
+                        break;
+                }
+                break;
+            case "TURNOPTIONERROR":
+                model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[2])).ktheGabim();
+                merrMesazhinEserverit();
+                break;
+            case "BUST":
+                model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[2])).deshtim();
+                merrMesazhinEserverit();
+                break;
+            case "SPLITPAIRSRESPONSE":
+                switch (serverMsgComponents[2]) {
+                    case "SUCCESS!":
+                        view.ktheParateLbl(serverMsgComponents[3]);
+                        merrMesazhinEserverit();
+                        break;
+                }
+                break;
+            case "DOUBLEDOWNRESPONSE":
+                switch (serverMsgComponents[2]) {
+                    case "SUCCESS!":
+                        model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[3])).doublingDownIsuksesshem();
+                        view.ktheParateLbl(serverMsgComponents[4]);
+                        merrMesazhinEserverit();
+                        break;
+                }
+                break;
+            case "SENDRESULT":
+                view.vendosPritjenErradhes(false);
+                merrMesazhinEserverit();
+                break;
+            case "REMOVEDEALERFACEDOWNCARD":
+                view.largoLetrenEfshehurTeDealer();
+                merrMesazhinEserverit();
+                break;
+            case "DEALERHANDVALUE":
+                view.vendosVlerenEdealerHandLbl(serverMsgComponents[2]);
+                merrMesazhinEserverit();
+                break;
+            case "REMOVEDOUBLEDOWNFACEDOWNCARD":
+                model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[2])).largoDoubleDownLetrenEfshehur();
+                merrMesazhinEserverit();
+                break;
+            case "ROUNDRESULT":
+                switch (serverMsgComponents[2]) {
+                    case "BUST":
+                        switch (serverMsgComponents[3]) {
+                            case "TIE":
+                                model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[4])).vendosHandMesazhinLbl("You and the dealer both busted. It's a tie!");
+                                view.ktheParateLbl(serverMsgComponents[5]);
+                                merrMesazhinEserverit();
+                                break;
+                            case "DEALER":
+                                model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[4])).vendosHandMesazhinLbl("You busted. The dealer wins!");
+                                view.ktheParateLbl(serverMsgComponents[5]);
+                                merrMesazhinEserverit();
+                                break;
+                            case "PLAYER":
+                                model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[4])).vendosHandMesazhinLbl("The dealer busted. You win!");
+                                view.ktheParateLbl(serverMsgComponents[5]);
+                                merrMesazhinEserverit();
+                                break;
+                        }
+                        break;
+                    case "NORMAL":
+                        switch (serverMsgComponents[3]) {
+                            case "TIE":
+                                model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[4])).vendosHandMesazhinLbl("It's a tie!");
+                                view.ktheParateLbl(serverMsgComponents[5]);
+                                merrMesazhinEserverit();
+                                break;
+                            case "DEALER":
+                                model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[4])).vendosHandMesazhinLbl("The dealer wins!");
+                                view.ktheParateLbl(serverMsgComponents[5]);
+                                merrMesazhinEserverit();
+                                break;
+                            case "PLAYER":
+                                model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[4])).vendosHandMesazhinLbl("You win!");
+                                view.ktheParateLbl(serverMsgComponents[5]);
+                                merrMesazhinEserverit();
+                                break;
+                        }
+                        break;
+                    case "BLACKJACK!!!":
+                        switch (serverMsgComponents[3]) {
+                            case "TIE":
+                                model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[4])).vendosHandMesazhinLbl("You and the dealer both have Blackjack. It's a tie!");
+                                view.ktheParateLbl(serverMsgComponents[5]);
+                                merrMesazhinEserverit();
+                                break;
+                            case "DEALER":
+                                model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[4])).vendosHandMesazhinLbl("The dealer has Blackjack. The dealer wins!");
+                                view.ktheParateLbl(serverMsgComponents[5]);
+                                merrMesazhinEserverit();
+                                break;
+                            case "PLAYER":
+                                model.merrLojtaritHandPanelin(Integer.parseInt(serverMsgComponents[4])).vendosHandMesazhinLbl("You have Blackjack. You win!");
+                                view.ktheParateLbl(serverMsgComponents[5]);
+                                merrMesazhinEserverit();
+                                break;
+                        }
+                        break;
+                }
+                break;
+            case "GETCONTINUEPLAYING":
+                view.mundesoVazhdiminElojes();
+                merrMesazhinEserverit();
+                break;
+            case "CONTINUEPLAYINGRESPONSE":
+                switch (serverMsgComponents[2]) {
+                    case "ERROR":
+                        view.gabimNeVazhdiminElojes();
+                        merrMesazhinEserverit();
+                        break;
+                    case "CONTINUE":
+                        view.rifillo();
+                        model.rifillo();
+                        view.tregoPanelinEvazhdimitTeLojes();
+                        merrMesazhinEserverit();
+                        break;
+                }
+                break;
+            case "GAMEOVER":
+                view.tregoPanelinEvazhdimitTeLojes();
+                view.vendosParatePerVazhdimLojeLbl(serverMsgComponents[2]);
+                view.lojaMbaroi();
+                merrMesazhinEserverit();
+                break;
+            case "WAITING":
+                switch (serverMsgComponents[2]) {
+                    case "WELCOME!":
+                        view.vendosWelcomePritjen(true);
+                        view.vendosPritjenPerVazhdimLoje(true);
+                        merrMesazhinEserverit();
+                        break;
+                    case "BET":
+                        view.vendosjaEbastitNePritje(true);
+                        merrMesazhinEserverit();
+                        break;
+                    case "INSURANCEBET":
+                        view.vendosBastinInsuranceNePritje(true);
+                        merrMesazhinEserverit();
+                        break;
+                    case "TURN":
+                        view.vendosPritjenErradhes(true);
+                        merrMesazhinEserverit();
+                        break;
+                }
+                break;
+            default:
+                System.err.println("Unknown message received from Server: \"" + mesazhiIserverit + "\"");
+                break;
+        }
+    }
+
+    
+    //e thirre metoden 'dergoMesazhKlientit' te modelit me ni cilentMessage te dhene
+
+    public void dergoMesazhKlientit(String mesazhiIclientit) {
+        model.dergoMesazhKlientit(mesazhiIclientit);
+    }
+
+
+    //e thirre metoden 'dilNgaLoja()' te modelit
+
+    public void dilNgaLoja() {
+        model.dilNgaLoja();
+    }
+
+    
+    public static void main(String[] args) {
+        String serverAdresa = DEFAULT_SERVER_ADRESA;
+        int portServeri = DEFAULT_SERVER_PORTI;
+        for (int i = 0; i < args.length; i += 2) {
+            String opsioni = args[i];
+            String argumenti= null;
+            try {
+                argumenti= args[i + 1];
+            } catch (ArrayIndexOutOfBoundsException e) {
+                System.err.println("Options: [-a serverAdresa] [-p portServeri]");
+                System.exit(1);
+            }
+            switch (opsioni) {
+                case "-a":
+                    serverAdresa = argumenti;
+                    break;
+                case "-p":
+                    try {
+                        portServeri = Integer.parseInt(argumenti);
+                    } catch (NumberFormatException e) {
+                        System.err.println("Server port must be an integer");
+                        System.exit(1);
+                    }
+                    break;
+                default:
+                    System.err.println("Options: [-a serverAdresa] [-p portServeri]");
+                    System.exit(1);
+                    break;
+            }
+        }
+        BlackjackKlienti kontrolleri = new BlackjackKlienti(serverAdresa, portServeri);
+        kontrolleri.fillo();
+    }
+}
