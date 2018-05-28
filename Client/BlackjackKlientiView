@@ -1,0 +1,606 @@
+package BlackjackKlienti;
+
+import java.awt.CardLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextField;
+
+
+ // Objektet e BlackjackKlientiView krijojne nje GUI per lotarin
+
+
+public class BlackjackKlientiView extends JFrame implements ActionListener {
+    private static final Dimension DIMENSIONI_MIN_KORNIZES = new Dimension(960, 600);
+    private static final Dimension DIMENSIONI_I_HAND_DEALER_PANEL= new Dimension(930, 170);
+    private static final Dimension DIMENSIONI_I_HAND_PLAYER_PANEL = new Dimension(930, 265);
+    private static final Dimension DIMENDIMENSIONI_I_BUTONIT = new Dimension(110, 30);
+    private static final int MADHESIA_E_FUSHES_SE_BASTIT= 5;
+    private static final Color CARD_TABLE_BLUE = new Color(32, 23, 78);
+    private static final Color NGJYRA_E_TEKSTIT = new Color(235, 235, 235);
+    private static final Float MADHESIA_E_WELCOME_LBL = 24.0f;
+    private static final Float MADHESIA_E_HANDit_LBL = 18.0f;
+    private BlackjackKlienti kontrolleri; // client GUI kontrolleri
+
+    // welcome panel components
+    private JLabel labelaPerWelcomeWaiting;
+
+    // basti panel components
+    private JLabel bastiMinimalLbl;
+    private JTextField fushaEbastit;
+    private JButton butoniIbastitt;
+    private JLabel bastiIparaveLbl;
+    private JLabel mesazhiIbastitLbl;
+    private JLabel pritjaPerBastLbl;
+
+    // turn panel components
+    private JPanel dealerPaneliHandd;
+    private JLabel vleraEdealerHandLbl;
+    private JPanel handsatElojtaritPanel;
+    private JLabel mesazhiLabel;
+    private JButton ButoniYes;
+    private JButton ButoniNo;
+    private JLabel blackjackLbl1;
+    private JLabel ktheParateLbl;
+    private JLabel pritjaPerBastLbl1;
+    private JLabel rradhaEpritjesLbl;
+
+    // continue playing panel components
+    private JLabel vazhdoLuajMessageLbl;
+    private JLabel vazhdoLuajMoneyLbl;
+    private JLabel vazhdoLuajWaitingLbl;
+
+    //Emrat e panelave ne GUI
+
+    private enum PanelNames {
+        PANELIWELCOME, PANELIBASTIT, TURNPANELI, VAZHDOLOJENPANEL
+    }
+//An enum type is a special data type that enables for a variable to be a set of predefined constants.
+    
+
+    public BlackjackKlientiView(BlackjackKlienti kontrolleri) {
+        this.kontrolleri = kontrolleri;
+        setupWindowListener(this.kontrolleri);
+        setupFrame();
+        krijoPanelet();
+        setupActionListeners();
+    }
+
+
+    private void setupWindowListener(BlackjackKlienti kontrolleri) {
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                int response = JOptionPane.showConfirmDialog(null, "Are you sure you want to quit?!", null, JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+                if (response == JOptionPane.YES_OPTION) {
+                    kontrolleri.dilNgaLoja();
+                    System.exit(0);
+                }
+            }
+        });
+    }
+
+   
+
+    private void setupFrame() {
+        setTitle("BLACKJACK GAME");
+        setMinimumSize(DIMENSIONI_MIN_KORNIZES);
+        setResizable(true);
+        setLocationRelativeTo(null);
+        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+        setLayout(new CardLayout());
+        tregoNdryshimett();
+    }
+
+//KRIJON TE GJITHA PANELET
+    private void krijoPanelet() {
+        krijoPanelinMireseardhes();
+        krijoPanelinEbastit();
+        krijoPanelinErradhes();
+        krijoPanelinEvazhdimitTeLojes();
+    }
+
+    
+
+    private void setupActionListeners() {
+        fushaEbastit.addActionListener(this);
+        butoniIbastitt.addActionListener(this);
+        ButoniYes.addActionListener(this);
+        ButoniNo.addActionListener(this);
+    }
+
+   //TREGON NDRYSHIMET QE NDODHIN NE GUI
+
+    private void tregoNdryshimett() {
+        revalidate();
+        repaint();
+        setVisible(true);
+    }
+
+    //krijon panelin mireseardhes
+
+    private void krijoPanelinMireseardhes() {
+        JPanel welcomePanel = new JPanel(new GridBagLayout());
+        welcomePanel.setBackground(CARD_TABLE_BLUE);
+        GridBagConstraints constraints = new GridBagConstraints();
+        JLabel welcomeLabel = new JLabel("Welcome to Blackjack!");
+        welcomeLabel.setForeground(NGJYRA_E_TEKSTIT);
+        welcomeLabel.setFont(welcomeLabel.getFont().deriveFont(MADHESIA_E_WELCOME_LBL));
+        constraints.gridx = 0;
+        constraints.gridy = 0;
+        welcomePanel.add(welcomeLabel, constraints);
+        labelaPerWelcomeWaiting = new JLabel("Waiting for other players to join.");
+        labelaPerWelcomeWaiting.setForeground(NGJYRA_E_TEKSTIT);
+        labelaPerWelcomeWaiting.setVisible(false);
+        constraints.gridy = 1;
+        welcomePanel.add(labelaPerWelcomeWaiting, constraints);
+        add(welcomePanel, PanelNames.PANELIWELCOME.toString());
+    }
+
+   
+     //Shows the welcome waiting label.
+    
+
+    public void vendosWelcomePritjen(Boolean b) {
+        labelaPerWelcomeWaiting.setVisible(b);
+        tregoNdryshimett();
+    }
+
+
+    private void krijoPanelinEbastit() {
+        JPanel bastiPanel = new JPanel(new GridBagLayout());
+        bastiPanel.setBackground(CARD_TABLE_BLUE);
+        GridBagConstraints constraints = new GridBagConstraints();
+        bastiMinimalLbl = new JLabel();
+        bastiMinimalLbl.setForeground(NGJYRA_E_TEKSTIT);
+        constraints.gridx = 0;
+        constraints.gridy = 0;
+        bastiPanel.add(bastiMinimalLbl, constraints);
+        fushaEbastit = new JTextField(MADHESIA_E_FUSHES_SE_BASTIT);
+        constraints.gridy = 1;
+        bastiPanel.add(fushaEbastit, constraints);
+        mesazhiIbastitLbl = new JLabel();
+        mesazhiIbastitLbl.setForeground(NGJYRA_E_TEKSTIT);
+        constraints.gridy = 2;
+        bastiPanel.add(mesazhiIbastitLbl, constraints);
+        butoniIbastitt = new JButton("Place Bet");
+        butoniIbastitt.setPreferredSize(DIMENDIMENSIONI_I_BUTONIT);
+        constraints.gridy = 3;
+        bastiPanel.add(butoniIbastitt, constraints);
+        bastiIparaveLbl = new JLabel();
+        bastiIparaveLbl.setForeground(NGJYRA_E_TEKSTIT);
+        constraints.gridy = 4;
+        bastiPanel.add(bastiIparaveLbl, constraints);
+        pritjaPerBastLbl = new JLabel("Waiting for other players to place their bastis.");
+        pritjaPerBastLbl.setForeground(NGJYRA_E_TEKSTIT);
+        pritjaPerBastLbl.setVisible(false);
+        constraints.gridy = 5;
+        bastiPanel.add(pritjaPerBastLbl, constraints);
+        add(bastiPanel, PanelNames.PANELIBASTIT.toString());
+    }
+
+   
+    //vendose labelen e  minimumit te bastit minimal te dhene
+
+    public void tregoMinEbastitLbl(String bastiiminimal) {
+        bastiMinimalLbl.setText("The minimum basti is $" + bastiiminimal + ". How much would you like to basti?");
+        tregoNdryshimett();
+    }
+
+  
+    //labela e mesazhit te bastit i errorit te dhene
+
+    public void errorBasti(String errorMessage) {
+        mesazhiIbastitLbl.setText(errorMessage);
+        mundesoButoninEbastit(true);
+        mundesoFushenEbastit(true);
+        tregoNdryshimett();
+    }
+
+    
+    //e largon tekstin prej labeles se besazhit te bastit
+
+    public void bastIsukssesshem() {
+        mesazhiIbastitLbl.setText("");
+        tregoNdryshimett();
+    }
+
+  
+    //e vendos labelen e bastit te parave ne shumen e dhene te parave
+
+    public void vendosBastinEparaveLbl(String parate) {
+        bastiIparaveLbl.setText("Money: $" + parate);
+        tregoNdryshimett();
+    }
+
+    
+    //tregon labelen per pritje te bastit
+
+    public void vendosjaEbastitNePritje(Boolean b) {
+        pritjaPerBastLbl.setVisible(b);
+        tregoNdryshimett();
+    }
+
+  //krijon panelin e rradhes
+
+    private void krijoPanelinErradhes() {
+        JPanel turnPanel = new JPanel(new GridBagLayout());
+        turnPanel.setBackground(CARD_TABLE_BLUE);
+        GridBagConstraints constraints = new GridBagConstraints();
+        JLabel dealerHandLabel = new JLabel("Dealer's Hand:");
+        dealerHandLabel.setForeground(NGJYRA_E_TEKSTIT);
+        dealerHandLabel.setFont(dealerHandLabel.getFont().deriveFont(MADHESIA_E_HANDit_LBL));
+        constraints.gridx = 0;
+        constraints.gridy = 0;
+        turnPanel.add(dealerHandLabel, constraints);
+        dealerPaneliHandd = new JPanel();
+        dealerPaneliHandd.setBackground(CARD_TABLE_BLUE);
+        JScrollPane dealerHandScrollPane = new JScrollPane(dealerPaneliHandd);
+        dealerHandScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        dealerHandScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
+        dealerHandScrollPane.setPreferredSize(DIMENSIONI_I_HAND_DEALER_PANEL);
+        dealerHandScrollPane.setBorder(BorderFactory.createEmptyBorder());
+        constraints.gridy = 1;
+        turnPanel.add(dealerHandScrollPane, constraints);
+        vleraEdealerHandLbl = new JLabel();
+        vleraEdealerHandLbl.setForeground(NGJYRA_E_TEKSTIT);
+        constraints.gridy = 2;
+        turnPanel.add(vleraEdealerHandLbl, constraints);
+        JLabel playerHandsLabel = new JLabel("Your Hands:");
+        playerHandsLabel.setForeground(NGJYRA_E_TEKSTIT);
+        playerHandsLabel.setFont(playerHandsLabel.getFont().deriveFont(MADHESIA_E_HANDit_LBL));
+        constraints.gridy = 3;
+        turnPanel.add(playerHandsLabel, constraints);
+        handsatElojtaritPanel = new JPanel();
+        handsatElojtaritPanel.setBackground(CARD_TABLE_BLUE);
+        JScrollPane playerHandsScrollPane = new JScrollPane(handsatElojtaritPanel);
+        playerHandsScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        playerHandsScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
+        playerHandsScrollPane.setPreferredSize(DIMENSIONI_I_HAND_PLAYER_PANEL);
+        playerHandsScrollPane.setBorder(BorderFactory.createEmptyBorder());
+        constraints.gridy = 4;
+        turnPanel.add(playerHandsScrollPane, constraints);
+        mesazhiLabel = new JLabel();
+        mesazhiLabel.setForeground(NGJYRA_E_TEKSTIT);
+        constraints.gridy = 5;
+        turnPanel.add(mesazhiLabel, constraints);
+        JPanel bastiIinsurancceButtonsPanel = new JPanel();
+        bastiIinsurancceButtonsPanel.setBackground(CARD_TABLE_BLUE);
+        constraints.gridy = 6;
+        turnPanel.add(bastiIinsurancceButtonsPanel, constraints);
+        ButoniYes = new JButton("Yes");
+        ButoniYes.setPreferredSize(DIMENDIMENSIONI_I_BUTONIT);
+        mundesoButoninYes(false);
+        ButoniNo = new JButton("No");
+        ButoniNo.setPreferredSize(DIMENDIMENSIONI_I_BUTONIT);
+        mundesoButoninNo(false);
+        bastiIinsurancceButtonsPanel.add(ButoniYes);
+        bastiIinsurancceButtonsPanel.add(ButoniNo);
+        blackjackLbl1 = new JLabel();
+        blackjackLbl1.setForeground(NGJYRA_E_TEKSTIT);
+        constraints.gridy = 7;
+        turnPanel.add(blackjackLbl1, constraints);
+        ktheParateLbl = new JLabel();
+        ktheParateLbl.setForeground(NGJYRA_E_TEKSTIT);
+        constraints.gridy = 8;
+        turnPanel.add(ktheParateLbl, constraints);
+        pritjaPerBastLbl1 = new JLabel("Waiting for other players to place their insurance bastis.");
+        pritjaPerBastLbl1.setForeground(NGJYRA_E_TEKSTIT);
+        pritjaPerBastLbl1.setVisible(false);
+        constraints.gridy = 9;
+        turnPanel.add(pritjaPerBastLbl1, constraints);
+        rradhaEpritjesLbl = new JLabel("Waiting for other players to take their turns.");
+        rradhaEpritjesLbl.setForeground(NGJYRA_E_TEKSTIT);
+        rradhaEpritjesLbl.setVisible(false);
+        constraints.gridy = 10;
+        turnPanel.add(rradhaEpritjesLbl, constraints);
+        add(turnPanel, PanelNames.TURNPANELI.toString());
+    }
+
+  
+    
+    //shton nje JLabel te dhene qe permban imazhin e letres te had panelit te dealer
+
+    public void shtoLeterDealerit(JLabel letraLbl) {
+        dealerPaneliHandd.add(letraLbl);
+        tregoNdryshimett();
+    }
+
+   //e largon letren e fshehur te dealer
+
+    public void largoLetrenEfshehurTeDealer() {
+        dealerPaneliHandd.remove(dealerPaneliHandd.getComponent(1));
+        tregoNdryshimett();
+    }
+
+   
+    //e vendos labelen e vleres se handit te dealerit ne vleren e dhene te handit
+
+    public void vendosVlerenEdealerHandLbl(String dealerHandValue) {
+        vleraEdealerHandLbl.setText("Dealer Hand Value: " + dealerHandValue);
+        tregoNdryshimett();
+    }
+
+   
+    //e shton BlackjakHandPanel tek handsatElojtaritPanel ne indexin e dhene
+
+    public void shtoLojtaritHandPanelin(BlacJackHandPanel playerHandPanel, int index) {
+        handsatElojtaritPanel.add(playerHandPanel, index);
+        tregoNdryshimett();
+    }
+
+  //e largon BlackjakHandPanel tek handsatElojtaritPanel ne indexin e dhene
+
+    public void largoLojtaritHandPanelin(BlacJackHandPanel playerHandPanel) {
+        handsatElojtaritPanel.remove(playerHandPanel);
+        tregoNdryshimett();
+    }
+
+  
+    //vendos labelen e kthimit te parave ne shumen e dhene te parave
+
+    public void ktheParateLbl(String parate) {
+        ktheParateLbl.setText("Money: $" + parate);
+        tregoNdryshimett();
+    }
+
+   
+    //vendso labelen e mesazhit ne mesazhin e dhene
+
+    public void vendosMesazhinLbl(String message) {
+        mesazhiLabel.setText(message);
+        tregoNdryshimett();
+    }
+
+    
+
+    public void mundesoBastInsurace() {
+        vendosMesazhinLbl("Would you like to place an insurance basti?");
+        mundesoButoninYes(true);
+        mundesoButoninNo(true);
+        tregoNdryshimett();
+    }
+
+   
+
+    public void errorNeBastinPerInsurance() {
+        vendosMesazhinLbl("ERROR");
+        mundesoButoninYes(true);
+        mundesoButoninNo(true);
+        tregoNdryshimett();
+    }
+
+    
+     // Disables the yes and no buttons after either placing or not placing insurance basti.
+     
+
+    public void bastInsuranceIsuksesshem() {
+        mundesoButoninYes(false);
+        mundesoButoninNo(false);
+        tregoNdryshimett();
+    }
+
+   
+
+    public void largoInfoPrejInsuranceBastit() {
+        mesazhiLabel.setText("");
+        tregoNdryshimett();
+    }
+
+   
+    public void mundesoVazhdiminElojes() {
+        vendosMesazhinLbl("Would you like to keep playing?");
+        mundesoButoninYes(true);
+        mundesoButoninNo(true);
+        tregoNdryshimett();
+    }
+
+    
+     // Sets the message label to the error message and enables the yes and no buttons.
+     
+
+    public void gabimNeVazhdiminElojes() {
+        vendosMesazhinLbl("ERROR");
+        mundesoButoninYes(true);
+        mundesoButoninNo(true);
+        tregoNdryshimett();
+    }
+
+  
+     // Sets the Blackjack label to the given message.
+   
+
+    public void vendosBlackjackLbl(String blackjackMessage) {
+        blackjackLbl1.setText(blackjackMessage);
+        tregoNdryshimett();
+    }
+
+    
+     // Shows the insurance basti waiting label.
+  
+
+    public void vendosBastinInsuranceNePritje(Boolean b) {
+        pritjaPerBastLbl1.setVisible(b);
+        tregoNdryshimett();
+    }
+
+    
+     // Shows the turn waiting label.
+    
+
+    public void vendosPritjenErradhes(Boolean b) {
+        rradhaEpritjesLbl.setVisible(b);
+        tregoNdryshimett();
+    }
+
+    
+     // Creates the continue playing panel.
+     
+
+    private void krijoPanelinEvazhdimitTeLojes() {
+        JPanel vazhdoLuajPanel = new JPanel(new GridBagLayout());
+        vazhdoLuajPanel.setBackground(CARD_TABLE_BLUE);
+        GridBagConstraints constraints = new GridBagConstraints();
+        vazhdoLuajMessageLbl = new JLabel();
+        vazhdoLuajMessageLbl.setForeground(NGJYRA_E_TEKSTIT);
+        constraints.gridx = 0;
+        constraints.gridy = 0;
+        vazhdoLuajPanel.add(vazhdoLuajMessageLbl, constraints);
+        JPanel vazhdoLuajButtonsPanel = new JPanel();
+        vazhdoLuajButtonsPanel.setBackground(CARD_TABLE_BLUE);
+        constraints.gridy = 1;
+        vazhdoLuajPanel.add(vazhdoLuajButtonsPanel, constraints);
+        vazhdoLuajMoneyLbl = new JLabel();
+        vazhdoLuajMoneyLbl.setForeground(NGJYRA_E_TEKSTIT);
+        constraints.gridy = 2;
+        vazhdoLuajPanel.add(vazhdoLuajMoneyLbl, constraints);
+        vazhdoLuajWaitingLbl = new JLabel("Waiting for other players to join.");
+        vazhdoLuajWaitingLbl.setForeground(NGJYRA_E_TEKSTIT);
+        vazhdoLuajWaitingLbl.setVisible(false);
+        constraints.gridy = 3;
+        vazhdoLuajPanel.add(vazhdoLuajWaitingLbl, constraints);
+        add(vazhdoLuajPanel, PanelNames.VAZHDOLOJENPANEL.toString());
+    }
+
+    
+     // Sets the continue playing parate label to the given amount of parate.
+   
+    public void vendosParatePerVazhdimLojeLbl(String parate) {
+        vazhdoLuajMoneyLbl.setText("Money: $" + parate);
+        tregoNdryshimett();
+    }
+
+    
+     // Sets the continue playing message label to the game over message.
+    
+
+    public void lojaMbaroi() {
+        vazhdoLuajMessageLbl.setText("Thanks for playing!");
+        tregoNdryshimett();
+    }
+
+    
+     // Shows the continue playing waiting label.
+    
+
+    public void vendosPritjenPerVazhdimLoje(Boolean b) {
+        vazhdoLuajWaitingLbl.setVisible(b);
+        tregoNdryshimett();
+    }
+
+  
+    private void mundesoFushenEbastit(Boolean b) {
+        fushaEbastit.setEnabled(b);
+        tregoNdryshimett();
+    }
+
+    
+     // Enables and shows or disables and hides the basti button.
+     
+
+    private void mundesoButoninEbastit(Boolean b) {
+        butoniIbastitt.setEnabled(b);
+        butoniIbastitt.setVisible(b);
+        tregoNdryshimett();
+    }
+
+    
+     // Enables and shows or disables and hides the yes button.
+   
+
+    private void mundesoButoninYes(Boolean b) {
+        ButoniYes.setEnabled(b);
+        ButoniYes.setVisible(b);
+        tregoNdryshimett();
+    }
+
+    
+     // Enables and shows or disables and hides the no button.
+     
+ 
+    private void mundesoButoninNo(Boolean b) {
+        ButoniNo.setEnabled(b);
+        ButoniNo.setVisible(b);
+        tregoNdryshimett();
+    }
+
+    
+     // Shows the panel with the given name.
+  
+
+    private void showPanel(PanelNames panelName) {
+        CardLayout cardLayout = (CardLayout) getContentPane().getLayout();
+        cardLayout.show(getContentPane(), panelName.toString());
+        tregoNdryshimett();
+    }
+
+    
+     
+     
+
+    public void tregoWelcomePanelin() {
+        showPanel(PanelNames.PANELIWELCOME);
+    }
+
+
+    public void tregoPanelinEbastit() {
+        showPanel(PanelNames.PANELIBASTIT);
+    }
+
+
+    public void tregoPanelinErradhes() {
+        showPanel(PanelNames.TURNPANELI);
+    }
+
+  
+
+    public void tregoPanelinEvazhdimitTeLojes() {
+        showPanel(PanelNames.VAZHDOLOJENPANEL);
+    }
+
+    
+    public void rifillo(){
+        krijoPanelet();
+        setupActionListeners();
+        tregoPanelinEvazhdimitTeLojes();
+    }
+
+    
+     // Invoked when an action occurs.
+    
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        Object target = e.getSource();
+        if (target == fushaEbastit || target == butoniIbastitt) {
+            kontrolleri.dergoMesazhKlientit(fushaEbastit.getText());
+            mundesoFushenEbastit(false);
+            mundesoButoninEbastit(false);
+        } else if (target == ButoniYes) {
+            kontrolleri.dergoMesazhKlientit(ButoniYes.getText());
+            mundesoButoninYes(false);
+            mundesoButoninNo(false);
+        } else if (target == ButoniNo) {
+            kontrolleri.dergoMesazhKlientit(ButoniNo.getText());
+            mundesoButoninYes(false);
+            mundesoButoninNo(false);
+        }
+    }
+}
+
+
+
+
