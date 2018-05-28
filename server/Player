@@ -1,0 +1,546 @@
+package BlackJackServeri;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.concurrent.CountDownLatch;
+
+
+// Player prezenton nje lojtar ne BlackJack
+
+
+public class Player implements Runnable {
+    private static final int PIKET_MAKSIMALE = 21;                            
+    private static final int PIKET_MINIMALE_DOUBLE_DOWN = 9;                 
+    private static final int PIKET_MAKSIMALE_DOUBLE_DOWN = 11;                
+    private static final int PIKET_MINIMALE_SOFT_DOUBLE_DOWN = 19;           
+    private static final int PIKET_MAKSIMALE_SOFT_DOUBLE_DOWN = 21;           
+    private static final double BLACKJACK_PAYOUT_MULTIPLAYER = 3.0 / 2.0;    
+    private Table tabela;                                                    
+    private BufferedReader in;                                              
+    private PrintWriter out;                                                
+    private ArrayList <BlackJackHand> playerHands = new ArrayList<>();       
+    private BlackJackHand originalPlayerHand;                               
+    private double parate;                                                   
+    private boolean hasBlackjack = false;                                  
+    private String zgjedhja;                                                  
+    private boolean zgjidhjaEpranuar = false;                                 
+    private double bastiIinsurancce;                                            
+    private boolean bastiIvedosurIsurannce = false;                             
+    private CountDownLatch startLatch;                                      
+    private CountDownLatch betLatch;                                        
+    private CountDownLatch bastiIinsurancceLatch;                               
+    private CountDownLatch dealLatch;                                       
+    private CountDownLatch dealerTurnLatch;                                 
+    private boolean vazhdoLuaj = false;                                
+
+
+    public Player(Socket socket, Table tabela, int parate) {
+        this.tabela = tabela;
+        this.parate = parate;
+        try {
+            InputStreamReader insr = new InputStreamReader(socket.getInputStream());     // input stream reader from socket
+            in = new BufferedReader(insr);
+            out = new PrintWriter(socket.getOutputStream(), true);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+   
+    
+    public void run() {
+        out.println("SERVERMESSAGE--WELCOME!");
+        do {
+            luajBlackjack();
+        } while (vazhdoLuaj);
+        out.println("SERVERMESSAGE--GAMEOVER--" + String.format("%.2f", parate));
+    }
+
+    
+
+    private void luajBlackjack() {
+        setupPlayer();
+        try {
+            startLatch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        merreBastin();
+        try {
+            betLatch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        try {
+            dealLatch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        dergoInfoTeRoundit();
+        try {
+            dealerTurnLatch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        dergoLetraDealerit();
+        for (BlackJackHand hand : playerHands) {
+            dergoRez(hand);
+        }
+        merrVazhdiminElojes();
+    }
+
+    
+     // Sets the player up for a new round of Blackjack.
+     
+
+    private void setupPlayer() {
+        playerHands.clear();
+        originalPlayerHand = new BlackJackHand();
+        playerHands.add(originalPlayerHand);
+        hasBlackjack = false;
+        zgjidhjaEpranuar = false;
+        bastiIvedosurIsurannce = false;
+        vazhdoLuaj = false;
+        startLatch = new CountDownLatch(1);
+        betLatch = new CountDownLatch(1);
+        bastiIinsurancceLatch = new CountDownLatch(1);
+        dealLatch = new CountDownLatch(1);
+        dealerTurnLatch = new CountDownLatch(1);
+        out.println("SERVERMESSAGE--WAITING--WELCOME!");
+    }
+
+    
+
+    private void merreBastin() {
+        zgjidhjaEpranuar = false;
+        do {
+            boolean bastiJoNumerik = false;  // true if basti is not a positive integer, false if it is
+            out.println("SERVERMESSAGE--GETBET!--" + String.format("%.2f", parate) + "--" + String.format("%.2f", tabela.bastiiminimal()));
+            merrZgjedhjen();
+            try {
+                int basti = Integer.parseInt(zgjedhja);
+                originalPlayerHand.BejeBastin(basti);
+            } catch (NumberFormatException e) {
+                bastiJoNumerik = true;
+            }
+            if (bastiJoNumerik) {
+                out.println("SERVERMESSAGE--BETRESPONSE!--INVALID!");
+                zgjidhjaEpranuar = false;
+            } else if (originalPlayerHand.basti() > parate) {
+                out.println("SERVERMESSAGE--BETRESPONSE!--TOOMUCH!");
+                zgjidhjaEpranuar = false;
+            } else if (originalPlayerHand.basti() < tabela.bastiiminimal()) {
+                out.println("SERVERMESSAGE--BETRESPONSE!--MINIMUM!");
+                zgjidhjaEpranuar = false;
+            }
+        } while (!zgjidhjaEpranuar);
+        parate -= originalPlayerHand.basti();
+        tabela.placedBetsLatchCountDown();
+        out.println("SERVERMESSAGE--BETRESPONSE!--SUCCESS!--" + String.format("%.2f", parate));
+        if (tabela.numPlayers() > 1) {
+            out.println("SERVERMESSAGE--WAITING--BET");
+        }
+    }
+
+   
+//dergon informacione te raundit p.sh letrat e lojtarit ,letra qe dealer eshte duke i shfaqur ose nese ndonjeri prej tyre ka blackjack
+
+    private void dergoInfoTeRoundit() {
+        out.println("SERVERMESSAGE--NEWROUND!--" + String.format("%.2f", parate));
+        out.println("SERVERMESSAGE--NEWHAND--0");
+        for (int i = 0; i < originalPlayerHand.size(); i++) {
+            out.println("SERVERMESSAGE--NEWPLAYERCARD--0--" + originalPlayerHand.getLetra(i));
+        }
+        out.println("SERVERMESSAGE--HANDVALUE--0--" + originalPlayerHand.vleraEblackJack());
+        out.println("SERVERMESSAGE--HANDBET--0--" + String.format("%.2f", originalPlayerHand.basti()));
+        if (originalPlayerHand.vleraEblackJack() == PIKET_MAKSIMALE) {
+            out.println("SERVERMESSAGE--BLACKJACK!!!--PLAYER");
+            hasBlackjack = true;
+        }
+        out.println("SERVERMESSAGE--NEWDEALERCARD--" + tabela.letraEhapurEdealer());
+        out.println("SERVERMESSAGE--NEWDEALERCARD--back");
+        if (tabela.letraEhapurEdealer().rank() == Letra.Rank.ACE) {
+            getInsuranceBet();
+        }
+        tabela.bastiIvedosurIsuranncesLatchCountDown();
+        try {
+            bastiIinsurancceLatch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        if (originalPlayerHand.vleraEblackJack() == PIKET_MAKSIMALE && tabela.dealerHand().vleraEblackJack() == PIKET_MAKSIMALE) {
+            out.println("SERVERMESSAGE--BLACKJACK!!!--PLAYERANDDEALER!");
+            hasBlackjack = true;
+            if (bastiIvedosurIsurannce) {
+                parate += (bastiIinsurancce + (bastiIinsurancce * 2));
+                out.println("SERVERMESSAGE--INSURANCEBETWON--" + String.format("%.2f", bastiIinsurancce * 2) + "--" + String.format("%.2f", parate));
+            }
+        } else if (tabela.dealerHand().vleraEblackJack() == PIKET_MAKSIMALE) {
+            out.println("SERVERMESSAGE--BLACKJACK!!!--DEALER");
+            if (bastiIvedosurIsurannce) {
+                parate += (bastiIinsurancce + (bastiIinsurancce * 2));
+                out.println("SERVERMESSAGE--INSURANCEBETWON--" + String.format("%.2f", bastiIinsurancce * 2) + "--" + String.format("%.2f", parate));
+            }
+        } else if (tabela.letraEhapurEdealer().rank() == Letra.Rank.ACE && tabela.dealerHand().vleraEblackJack() != PIKET_MAKSIMALE){
+            out.println("SERVERMESSAGE--BLACKJACK!!!--DEALERNOBLACKJACK!!!");
+            if (bastiIvedosurIsurannce) {
+                out.println("SERVERMESSAGE--INSURANCEBETLOST");
+            }
+        }
+        if (tabela.letraEhapurEdealer().rank() == Letra.Rank.ACE) {
+            out.println("SERVERMESSAGE--INSURANCEBETDONE");
+        }
+        tabela.turnLatchCountDown();
+        if (tabela.numPlayers() > 1) {
+            out.println("SERVERMESSAGE--WAITING--TURN");
+        }
+    }
+
+    /**
+     * Asks the player if they want to place an insurance basti.
+     */
+
+    private void getInsuranceBet() {
+        if (parate >= originalPlayerHand.basti() / 2) {
+            zgjidhjaEpranuar = false;
+            do {
+                out.println("SERVERMESSAGE--GETINSURANCEBET");
+                merrZgjedhjen();
+                if (!zgjedhja.equals("Yes") && !zgjedhja.equals("No")) {
+                    out.println("SERVERMESSAGE--INSURANCEBETRESPONSE!--ERROR");
+                    zgjidhjaEpranuar = false;
+                }
+            } while (!zgjidhjaEpranuar);
+            if (zgjedhja.equals("Yes")) {
+                bastiIinsurancce = originalPlayerHand.basti() / 2;
+                parate -= bastiIinsurancce;
+                bastiIvedosurIsurannce = true;
+                out.println("SERVERMESSAGE--INSURANCEBETRESPONSE!--PLACED--" + String.format("%.2f", bastiIinsurancce) + "--" + String.format("%.2f", parate));
+            } else if (zgjedhja.equals("No")) {
+                out.println("SERVERMESSAGE--INSURANCEBETRESPONSE!--NOTPLACED");
+            }
+        } else {
+            out.println("SERVERMESSAGE--CANNOTINSURANCEBET");
+        }
+        if (tabela.numPlayers() > 1) {
+            out.println("SERVERMESSAGE--WAITING--INSURANCEBET");
+        }
+    }
+
+    
+    //performon rradhen e lojtarit duke pyetur nese ai do ti ndajee ,double down amo te perdor hit dhe stand
+
+    void takeTurn(BlackJackHand hand) {
+        if (hand == originalPlayerHand) {
+            out.println("SERVERMESSAGE--TAKETURN");
+            if (hasBlackjack && tabela.dealerKaBlackjack()) {
+                out.println("SERVERMESSAGE--TURNBLACKJACK!!!--PLAYERANDDEALER!");
+            } else if (hasBlackjack && !tabela.dealerKaBlackjack()) {
+                out.println("SERVERMESSAGE--TURNBLACKJACK!!!--PLAYER");
+            } else if (!hasBlackjack && tabela.dealerKaBlackjack()) {
+                out.println("SERVERMESSAGE--TURNBLACKJACK!!!--DEALER");
+            }
+        }
+        if (!hasBlackjack && !tabela.dealerKaBlackjack() && hand.getCard(0).rank() == hand.getCard(1).rank() && ((hand.vleraEblackJack() >= PIKET_MINIMALE_DOUBLE_DOWN && hand.vleraEblackJack() <= PIKET_MAKSIMALE_DOUBLE_DOWN) || (hand.isSoft() && hand.vleraEblackJack() >= PIKET_MINIMALE_SOFT_DOUBLE_DOWN && hand.vleraEblackJack() <= PIKET_MAKSIMALE_SOFT_DOUBLE_DOWN)) && parate >= hand.basti()) {
+            bothOptions(hand);
+        } else if (!hasBlackjack && !tabela.dealerKaBlackjack() && !hand.doublingDown() && hand.getCard(0).rank() == hand.getLetra(1).rank() && parate >= hand.basti()) {
+            ndajDyshetOption(hand);
+        } else if (!hasBlackjack && !tabela.dealerKaBlackjack() && !hand.ndajDyshet() && ((hand.vleraEblackJack() >= PIKET_MINIMALE_DOUBLE_DOWN && hand.vleraEblackJack() <= PIKET_MAKSIMALE_DOUBLE_DOWN) || (hand.isSoft() && hand.vleraEblackJack() >= PIKET_MINIMALE_SOFT_DOUBLE_DOWN && hand.vleraEblackJack() <= PIKET_MAKSIMALE_SOFT_DOUBLE_DOWN)) && parate >= hand.basti()) {
+            doublingDownOption(hand);
+        } else if (!hasBlackjack && !tabela.dealerKaBlackjack() && !hand.ndajDyshet() && !hand.doublingDown()) {
+            neitherOption(hand);
+        }
+        switch (zgjedhja) {
+            case "Split Pairs":
+                ndajDyshet(hand);
+                break;
+            case "Double Down":
+                doublingDown(hand);
+                break;
+            case "Hit":
+            case "Stand":
+                hitStand(hand);
+                break;
+        }
+        if (tabela.numPlayers() > 1 && !hasBlackjack && !tabela.dealerKaBlackjack() && hand == playerHands.get(playerHands.size() - 1)) {
+            out.println("SERVERMESSAGE--WAITING--TURN");
+        }
+    }
+
+   
+
+    private void bothOptions(BlackJackHand hand) {
+        zgjidhjaEpranuar = false;
+        do {
+            out.println("SERVERMESSAGE--HANDVALUE--" + playerHands.indexOf(hand) + "--" + hand.vleraEblackJack());
+            out.println("SERVERMESSAGE--TURNOPTION--BOTH--" + playerHands.indexOf(hand));
+            merrZgjedhjen();
+            if (!zgjedhja.equals("Hit") && !zgjedhja.equals("Stand") && !zgjedhja.equals("Split Pairs") && !zgjedhja.equals("Double Down")) {
+                out.println("SERVERMESSAGE--TURNOPTIONERROR--" + playerHands.indexOf(hand));
+                zgjidhjaEpranuar = false;
+            }
+        } while (!zgjidhjaEpranuar);
+    }
+
+
+    private void ndajDyshetOption(BlackJackHand hand) {
+        zgjidhjaEpranuar = false;
+        do {
+            out.println("SERVERMESSAGE--HANDVALUE--" + playerHands.indexOf(hand) + "--" + hand.vleraEblackJack());
+            out.println("SERVERMESSAGE--TURNOPTION--SPLITPAIRS--" + playerHands.indexOf(hand));
+            merrZgjedhjen();
+            if (!zgjedhja.equals("Hit") && !zgjedhja.equals("Stand") && !zgjedhja.equals("Split Pairs")) {
+                out.println("SERVERMESSAGE--TURNOPTIONERROR--" + playerHands.indexOf(hand));
+                zgjidhjaEpranuar = false;
+            }
+        } while (!zgjidhjaEpranuar);
+    }
+
+
+    private void doublingDownOption(BlackJackHand hand) {
+        zgjidhjaEpranuar = false;
+        do {
+            out.println("SERVERMESSAGE--HANDVALUE--" + playerHands.indexOf(hand) + "--" + hand.vleraEblackJack());
+            out.println("SERVERMESSAGE--TURNOPTION--DOUBLEDOWN--" + playerHands.indexOf(hand));
+            merrZgjedhjen();
+            if (!zgjedhja.equals("Hit") && !zgjedhja.equals("Stand") && !zgjedhja.equals("Double Down")) {
+                out.println("SERVERMESSAGE--TURNOPTIONERROR--" + playerHands.indexOf(hand));
+                zgjidhjaEpranuar = false;
+            }
+        } while (!zgjidhjaEpranuar);
+    }
+
+     // Sends turn opsionis hit or stand for given hand.
+   
+
+    private void neitherOption(BlackJackHand hand) {
+        zgjidhjaEpranuar = false;
+        do {
+            out.println("SERVERMESSAGE--HANDVALUE--" + playerHands.indexOf(hand) + "--" + hand.vleraEblackJack());
+            out.println("SERVERMESSAGE--TURNOPTION--NEITHER--" + playerHands.indexOf(hand));
+            merrZgjedhjen();
+            if (!zgjedhja.equals("Hit") && !zgjedhja.equals("Stand")) {
+                out.println("SERVERMESSAGE--TURNOPTIONERROR--" + playerHands.indexOf(hand));
+                zgjidhjaEpranuar = false;
+            }
+        } while (!zgjidhjaEpranuar);
+    }
+
+
+    private void ndajDyshet(BlackJackHand hand) {
+        hand.vendosiPaletPerNdarje();
+        parate -= hand.basti();
+        out.println("SERVERMESSAGE--SPLITPAIRSRESPONSE--SUCCESS!--" + String.format("%.2f", parate));
+        BlackJackHand firstHand = new BlackJackHand();
+        BlackJackHand secondHand = new BlackJackHand();
+        out.println("SERVERMESSAGE--REMOVEHAND--" + playerHands.indexOf(hand));
+        playerHands.add(playerHands.indexOf(hand), secondHand);
+        out.println("SERVERMESSAGE--NEWHAND--" + playerHands.indexOf(secondHand));
+        playerHands.add(playerHands.indexOf(secondHand), firstHand);
+        out.println("SERVERMESSAGE--NEWHAND--" + playerHands.indexOf(firstHand));
+        playerHands.remove(hand);
+        firstHand.shtoLeter(hand.getCard(0));
+        out.println("SERVERMESSAGE--NEWPLAYERCARD--" + playerHands.indexOf(firstHand) + "--" + firstHand.getCard(0));
+        secondHand.shtoLeter(hand.getLetra(1));
+        out.println("SERVERMESSAGE--NEWPLAYERCARD--" + playerHands.indexOf(secondHand) + "--" + secondHand.getCard(0));
+        firstHand.BejeBastin(hand.basti());
+        out.println("SERVERMESSAGE--HANDBET--" + playerHands.indexOf(firstHand) + "--" + String.format("%.2f", firstHand.basti()));
+        secondHand.BejeBastin(hand.basti());
+        out.println("SERVERMESSAGE--HANDBET--" + playerHands.indexOf(secondHand) + "--" + String.format("%.2f", secondHand.basti()));
+        if (firstHand.getCard(0).rank() == Letra.Rank.ACE && secondHand.getCard(0).rank() == Letra.Rank.ACE) {
+            Letra newLetra = tabela.dealLetra();
+            firstHand.shtoLeter(newLetra);
+            out.println("SERVERMESSAGE--NEWPLAYERCARD--" + playerHands.indexOf(firstHand) + "--" + newLetra);
+            out.println("SERVERMESSAGE--HANDVALUE--" + playerHands.indexOf(firstHand) + "--" + firstHand.vleraEblackJack());
+            newLetra = tabela.dealLetra();
+            secondHand.shtoLeter(newLetra);
+            out.println("SERVERMESSAGE--NEWPLAYERCARD--" + playerHands.indexOf(secondHand) + "--" + newLetra);
+            out.println("SERVERMESSAGE--HANDVALUE--" + playerHands.indexOf(secondHand) + "--" + secondHand.vleraEblackJack());
+            if (tabela.numPlayers() > 1 && secondHand == playerHands.get(playerHands.size() - 1)) {
+                out.println("SERVERMESSAGE--WAITING--TURN");
+            }
+        } else {
+            Letra newLetra = tabela.dealLetra();
+            firstHand.shtoLeter(newLetra);
+            out.println("SERVERMESSAGE--NEWPLAYERCARD--" + playerHands.indexOf(firstHand) + "--" + newLetra);
+            out.println("SERVERMESSAGE--HANDVALUE--" + playerHands.indexOf(firstHand) + "--" + firstHand.vleraEblackJack());
+            newLetra = tabela.dealLetra();
+            secondHand.shtoLeter(newLetra);
+            out.println("SERVERMESSAGE--NEWPLAYERCARD--" + playerHands.indexOf(secondHand) + "--" + newLetra);
+            out.println("SERVERMESSAGE--HANDVALUE--" + playerHands.indexOf(secondHand) + "--" + secondHand.vleraEblackJack());
+            takeTurn(firstHand);
+            takeTurn(secondHand);
+        }
+    }
+
+   
+
+    private void doublingDown(BlackJackHand hand) {
+        hand.setDoubleDown();
+        parate -= hand.basti();
+        hand.BejeBastin(hand.basti() * 2);
+        Letra newLetra = tabela.dealLetra();
+        hand.shtoDoubleDownLetren(newLetra);
+        out.println("SERVERMESSAGE--HANDBET--" + playerHands.indexOf(hand) + "--" + String.format("%.2f", hand.basti()));
+        out.println("SERVERMESSAGE--NEWPLAYERCARD--" + playerHands.indexOf(hand) + "--back");
+        out.println("SERVERMESSAGE--DOUBLEDOWNRESPONSE--SUCCESS!--" + playerHands.indexOf(hand) + "--" + String.format("%.2f", parate));
+    }
+
+ 
+
+    private void hitStand(BlackJackHand hand) {
+        if (zgjedhja.equals("Hit")) {
+            Letra newLetra = tabela.dealLetra();
+            hand.shtoLeter(newLetra);
+            out.println("SERVERMESSAGE--NEWPLAYERCARD--" + playerHands.indexOf(hand) + "--" + newLetra);
+            while (zgjedhja.equals("Hit") && hand.vleraEblackJack() <= PIKET_MAKSIMALE) {
+                neitherOption(hand);
+                if (zgjedhja.equals("Hit")) {
+                    newLetra = tabela.dealLetra();
+                    hand.shtoLeter(newLetra);
+                    out.println("SERVERMESSAGE--NEWPLAYERCARD--" + playerHands.indexOf(hand) + "--" + newLetra);
+                }
+            }
+        }
+        out.println("SERVERMESSAGE--HANDVALUE--" + playerHands.indexOf(hand) + "--" + hand.vleraEblackJack());
+        if (hand.vleraEblackJack() > PIKET_MAKSIMALE) {
+            out.println("SERVERMESSAGE--BUST--" + playerHands.indexOf(hand));
+        }
+    }
+
+    
+      //i dergon letrat e dealer te player
+     
+    private void dergoLetraDealerit() {
+        out.println("SERVERMESSAGE--SENDRESULT");
+        out.println("SERVERMESSAGE--REMOVEDEALERFACEDOWNCARD");
+        for (int i = 1; i < tabela.dealerHand().size(); i++) {
+            out.println("SERVERMESSAGE--NEWDEALERCARD--" + tabela.dealerHand().getLetra(i));
+        }
+        out.println("SERVERMESSAGE--DEALERHANDVALUE--" + tabela.dealerHand().vleraEblackJack());
+    }
+
+   
+     //Sends the final results to the player for a given hand including
+     //the player and dealer hand values, whether or not the player or
+     //dealer deshtimed, and who won.
+   
+
+    private void dergoRez(BlackJackHand hand) {
+        if (hand.doublingDown()) {
+            out.println("SERVERMESSAGE--REMOVEDOUBLEDOWNFACEDOWNCARD--" + playerHands.indexOf(hand));
+            out.println("SERVERMESSAGE--NEWPLAYERCARD--" + playerHands.indexOf(hand) + "--" + hand.doublingDownLetra());
+        }
+        out.println("SERVERMESSAGE--HANDVALUE--" + playerHands.indexOf(hand) + "--" + hand.vleraEblackJack());
+        if (!hasBlackjack && !tabela.dealerKaBlackjack()) {
+            if (hand.vleraEblackJack() > PIKET_MAKSIMALE && tabela.dealerHand().vleraEblackJack() > PIKET_MAKSIMALE) {
+                parate += hand.basti();
+                out.println("SERVERMESSAGE--ROUNDRESULT--BUST--TIE--" + playerHands.indexOf(hand) + "--" + String.format("%.2f", parate));
+            } else if (hand.vleraEblackJack() > PIKET_MAKSIMALE) {
+                out.println("SERVERMESSAGE--ROUNDRESULT--BUST--DEALER--" + playerHands.indexOf(hand) + "--" + String.format("%.2f", parate));
+            } else if (tabela.dealerHand().vleraEblackJack() > PIKET_MAKSIMALE) {
+                parate += hand.basti() * 2;
+                out.println("SERVERMESSAGE--ROUNDRESULT--BUST--PLAYER--" + playerHands.indexOf(hand) + "--" + String.format("%.2f", parate));
+            } else {
+                if (hand.vleraEblackJack() == tabela.dealerHand().vleraEblackJack()) {
+                    parate += hand.basti();
+                    out.println("SERVERMESSAGE--ROUNDRESULT--NORMAL--TIE--" + playerHands.indexOf(hand) + "--" + String.format("%.2f", parate));
+                } else if (hand.vleraEblackJack() < tabela.dealerHand().vleraEblackJack()) {
+                    out.println("SERVERMESSAGE--ROUNDRESULT--NORMAL--DEALER--" + playerHands.indexOf(hand) + "--" + String.format("%.2f", parate));
+                } else if (hand.vleraEblackJack() > tabela.dealerHand().vleraEblackJack()){
+                    parate += hand.basti() * 2;
+                    out.println("SERVERMESSAGE--ROUNDRESULT--NORMAL--PLAYER--" + playerHands.indexOf(hand) + "--" + String.format("%.2f", parate));
+                }
+            }
+        } else {
+            if (hasBlackjack && tabela.dealerKaBlackjack()) {
+                parate += hand.basti();
+                out.println("SERVERMESSAGE--ROUNDRESULT--BLACKJACK!!!--TIE--" + playerHands.indexOf(hand) + "--" + String.format("%.2f", parate));
+            } else if (!hasBlackjack && tabela.dealerKaBlackjack()) {
+                out.println("SERVERMESSAGE--ROUNDRESULT--BLACKJACK!!!--DEALER--" + playerHands.indexOf(hand) + "--" + String.format("%.2f", parate));
+            } else if (hasBlackjack && !tabela.dealerKaBlackjack()) {
+                parate += (hand.basti() + (hand.basti() * (BLACKJACK_PAYOUT_MULTIPLAYER)));
+                out.println("SERVERMESSAGE--ROUNDRESULT--BLACKJACK!!!--PLAYER--" + playerHands.indexOf(hand) + "--" + String.format("%.2f", parate));
+            }
+        }
+    }
+
+    /**
+     * Determines whether or not the player wants to keep playing.
+     */
+
+    private void merrVazhdiminElojes() {
+        if (parate >= tabela.bastiiminimal()) {
+            zgjidhjaEpranuar = false;
+            do {
+                out.println("SERVERMESSAGE--GETCONTINUEPLAYING");
+                merrZgjedhjen();
+                if (!zgjedhja.equals("Yes") && !zgjedhja.equals("No")) {
+                    out.println("SERVERMESSAGE--CONTINUEPLAYINGRESPONSE--ERROR");
+                    zgjidhjaEpranuar = false;
+                }
+            } while (!zgjidhjaEpranuar);
+            if (zgjedhja.equals("Yes")) {
+                vazhdoLuaj = true;
+                out.println("SERVERMESSAGE--CONTINUEPLAYINGRESPONSE--CONTINUE");
+            } else {
+                tabela.largoLojtarin(this);
+            }
+        } else {
+            tabela.largoLojtarin(this);
+        }
+        tabela.vazhdoLuajLatchCountDown();
+    }
+
+
+    private void merrZgjedhjen() {
+        try {
+            while (!zgjidhjaEpranuar) {
+                String mesazhiIclientit;
+                if ((mesazhiIclientit = in.readLine()) != null) {
+                    zgjedhja = mesazhiIclientit;
+                    zgjidhjaEpranuar = true;
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+  
+
+    public BlackJackHand originalPlayerHand() {
+        return originalPlayerHand;
+    }
+
+
+    public void startLatchCountDown() {
+        startLatch.countDown();
+    }
+
+
+    public void betLatchCountDown() {
+        betLatch.countDown();
+    }
+
+   
+
+    public void bastiIinsurancceLatchCountDown() {
+        bastiIinsurancceLatch.countDown();
+    }
+
+  
+    public void dealLatchCountDown() {
+        dealLatch.countDown();
+    }
+
+  
+
+    public void dealerTurnLatchCountDown() {
+        dealerTurnLatch.countDown();
+    }
+}
+
