@@ -1,0 +1,39 @@
+package BlackJackServeri;
+
+import java.util.ArrayList;
+
+//prezenton nje pako te letrave
+
+
+public class Deck {
+  private ArrayList<Letra> pakoja = new ArrayList<>();   // holds the cards in the pakoja
+
+ 
+
+  public Deck() {
+      for (Letra.Suit suit : Letra.Suit.values()) {
+          for (Letra.Rank rank : Letra.Rank.values()) {
+              pakoja.add(new Letra(rank, suit));
+          }
+      }
+  }
+
+
+   //Returns the last card in the pakoja.
+
+  public Letra dealLetra() {
+      Letra card = pakoja.get(pakoja.size() - 1);    // last card in the pakoja
+      pakoja.remove(card);
+      return card;
+  }
+
+  /**
+   * Returns the number of cards in the pakoja.
+   *
+   * @return the number of cards in the pakoja
+   */
+
+  public int size() {
+      return pakoja.size();
+  }
+}
