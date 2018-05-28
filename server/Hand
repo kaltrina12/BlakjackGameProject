@@ -1,0 +1,64 @@
+package BlackJackServeri;
+
+import java.util.ArrayList;
+
+// prezenton nje dor me letra
+
+
+public class Hand {
+   public ArrayList<Letra> hand = new ArrayList<>();   // holds the cards in the hand
+
+   /**
+    * Adds a card to the hand.
+    *
+    * @param newLetra Letra to add to hand
+    */
+
+   public void shtoLeter(Letra newLetra) {
+       hand.add(newLetra);
+   }
+
+   /**
+    * Returns the vleraof the hand.
+    *
+    * @return the vleraof the hand
+    */
+
+   public int value() {
+       int vlera= 0;  // vleraof the hand
+       for (Letra card : hand) {
+           vlera+= card.value();
+       }
+       return vlera;
+   }
+
+   /**
+    * Returns the number of cards in the hand.
+    *
+    * @return the number of cards in the hand
+    */
+
+   public int size() {
+       return hand.size();
+   }
+
+   /**
+    * Returns the card at the given index.
+    *
+    * @param index Index of the card to return
+    * @return the card at the given index
+    */
+
+   public Letra getLetra(int index) {
+       return hand.get(index);
+   }
+
+   /**
+    * Removes all of the cards from the hand.
+    */
+
+   public void clouse() {
+       hand.clear();
+   }
+}
+
