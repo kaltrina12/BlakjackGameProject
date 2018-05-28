@@ -1,0 +1,159 @@
+package BlackJackServeri;
+
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+
+/**
+ * Objektet e BlackJackServerit lejojne klientet te konektohen te luajne blackJack si lojtar te ri.
+ 
+ */
+
+public class BlackJackServeri {
+    private static final int DEFAULT_PORTI = 8080;                      
+    private static final int NUMRI_I_LOJTAREVE_NE_TABELE = 1;             
+    private static final int VLERA_FILLESTARE_E_PARAVE = 2500;             
+    private static final int BASTI_MINIMAL = 500;                 
+    private static final int NUMRI_I_PAKOVE = 6;               
+    private static final int MINIMUMI_LETRAVE_PARA_PERZIERJES = 78; 
+    private int portServeri;                                             
+    private int lojtaretPerTabele;                                       
+    private int parateFillestaree;                                          
+    private int bastiiminimal;                                             
+    private int numIpakove;                                          
+    private int letratMenimaleParaPerzierjesSeTyre;                             
+   
+    public BlackJackServeri(int portServeri, int lojtaretPerTabele, int parateFillestaree, int bastiiminimal, int numIpakove, int letratMenimaleParaPerzierjesSeTyre) {
+        this.portServeri = portServeri;
+        this.lojtaretPerTabele = lojtaretPerTabele;
+        this.parateFillestaree = parateFillestaree;
+        this.bastiiminimal = bastiiminimal;
+        this.numIpakove = numIpakove;
+        this.letratMenimaleParaPerzierjesSeTyre = letratMenimaleParaPerzierjesSeTyre;
+    }
+
+   
+//fillon serverin dhe shton kliente te konektuar si lojtar te ri
+
+    public void fillo()
+    {
+        System.out.println("Starting Blackjack server\nServer port: " + portServeri + "\nPlayers per tabela: " + lojtaretPerTabele + "\nStarting parate: " + parateFillestaree + "\nMinimum basti: " + bastiiminimal + "\nNumber of pakojas: " + numIpakove + "\nMinimum cards before perziej: " + letratMenimaleParaPerzierjesSeTyre);
+        ServerSocket serverSocket = null;
+        try {
+            System.out.println("Creating server socket");
+            serverSocket = new ServerSocket(portServeri);
+        } catch (IOException e) {
+            System.err.println("Could not start Blackjack server on port " + portServeri);
+            System.exit(1);
+        }
+        try {
+            System.out.println("Listening on port " + portServeri);
+            while (true) {
+                Table tabeleEre = new Table(bastiiminimal, numIpakove, letratMenimaleParaPerzierjesSeTyre);
+                Thread tabeleEreThread = new Thread(tabeleEre);
+                for (int i = 0; i < lojtaretPerTabele; i++) {
+                    Socket socket = serverSocket.accept();
+                    System.out.println("Received request from port " + socket.getPort());
+                    Player newPlayer = new Player(socket, tabeleEre, parateFillestaree);
+                    tabeleEre.addPlayer(newPlayer);
+                    Thread newPlayerThread = new Thread(newPlayer);
+                    newPlayerThread.start();
+                }
+                tabeleEreThread.start();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+   
+
+    public static void main(String[] args) {
+        int portServeri = DEFAULT_PORTI;
+        int lojtaretPerTabele = NUMRI_I_LOJTAREVE_NE_TABELE;
+        int parateFillestaree = VLERA_FILLESTARE_E_PARAVE;
+        int bastiiminimal = BASTI_MINIMAL;
+        int numIpakove = NUMRI_I_PAKOVE;
+        int letratMenimaleParaPerzierjesSeTyre = MINIMUMI_LETRAVE_PARA_PERZIERJES;
+        for (int i = 0; i < args.length; i += 2) {
+            String opsioni = args[i];
+            String argumenti= null;
+            try {
+                argumenti= args[i + 1];
+            } catch (ArrayIndexOutOfBoundsException e) {
+                System.err.println("Options: [-p portServeri] [-t lojtaretPerTabele] [-m parateFillestaree] [-b bastiiminimal] [-d numIpakove] [-c letratMenimaleParaPerzierjesSeTyre]");
+                System.exit(1);
+            }
+            switch (opsioni) {
+                case "-p":
+                    try {
+                        portServeri = Integer.parseInt(argumenti);
+                    } catch (NumberFormatException e) {
+                        System.err.println("Server port must be an integer");
+                        System.exit(1);
+                    }
+                    break;
+                case "-t":
+                    try {
+                        lojtaretPerTabele = Integer.parseInt(argumenti);
+                    } catch (NumberFormatException e) {
+                        System.err.println("Number of players per tabela must be an integer");
+                        System.exit(1);
+                    }
+                    break;
+                case "-m":
+                    try {
+                        parateFillestaree = Integer.parseInt(argumenti);
+                    } catch (NumberFormatException e) {
+                        System.err.println("Amount of starting parate must be an integer");
+                        System.exit(1);
+                    }
+                    break;
+                case "-b":
+                    try {
+                        bastiiminimal = Integer.parseInt(argumenti);
+                    } catch (NumberFormatException e) {
+                        System.err.println("Minimum basti amount must be an integer");
+                        System.exit(1);
+                    }
+                    break;
+                case "-d":
+                    try {
+                        numIpakove = Integer.parseInt(argumenti);
+                    } catch (NumberFormatException e) {
+                        System.err.println("Number of pakojas must be an integer");
+                        System.exit(1);
+                    }
+                    break;
+                case "-c":
+                    try {
+                        letratMenimaleParaPerzierjesSeTyre = Integer.parseInt(argumenti);
+                    } catch (NumberFormatException e) {
+                        System.err.println("Minimum cards before perziej must be an integer");
+                        System.exit(1);
+                    }
+                    break;
+                default:
+                    System.err.println("Options: [-p portServeri] [-t lojtaretPerTabele] [-m parateFillestaree] [-b bastiiminimal] [-d numIpakove] [-c letratMenimaleParaPerzierjesSeTyre]");
+                    System.exit(1);
+                    break;
+            }
+        }
+        if (lojtaretPerTabele < 1) {
+            System.err.println("Number of players per tabela must be at least 1");
+            System.exit(1);
+        } else if (parateFillestaree < bastiiminimal) {
+            System.err.println("Amount of starting parate cannot be less than minimum basti");
+            System.exit(1);
+        } else if (numIpakove < 1) {
+            System.err.println("Number of pakojas must be at least 1");
+            System.exit(1);
+        } else if (letratMenimaleParaPerzierjesSeTyre < 0) {
+            System.err.println("Minimum cards before perziej cannot be less than 0");
+            System.exit(1);
+        }
+        BlackJackServeri blackjackServer = new BlackJackServeri(portServeri, lojtaretPerTabele, parateFillestaree, bastiiminimal, numIpakove, letratMenimaleParaPerzierjesSeTyre);
+        blackjackServer.fillo();
+    }
+}
+
