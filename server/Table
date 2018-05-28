@@ -1,0 +1,215 @@
+package BlackJackServeri;
+
+import java.util.ArrayList;
+import java.util.concurrent.CountDownLatch;
+
+
+ // tabela
+
+
+public class Table implements Runnable {
+    private static final int PIKET_MAKSIMALE = 21;                            
+    private static final int KUFIRI_HIT_I_DEALER = 17;                     
+    private ArrayList<Player> tabela = new ArrayList<>();                    
+    private int bastiiminimal;                                                 
+    private int numIpakove;                                              
+    private int letratMenimaleParaPerzierjesSeTyre;                                 
+    private Shoe shoe;                                                     
+    private BlackJackHand dealerHand = new BlackJackHand();                 
+    private boolean dealerKaBlackjack;                                     
+    private CountDownLatch placedBetsLatch;                                
+    private CountDownLatch bastiIvedosurIsuranncesLatch;                        // latch to wait for all players to place their insurance bastis
+    private CountDownLatch turnLatch;                                       // latch to wait for all players to be ready for their turns
+    private CountDownLatch vazhdoLuajLatch;                            // latch to wait for all players to determine if they will keep playing
+
+
+
+    public Table(int bastiiminimal, int numIpakove, int letratMenimaleParaPerzierjesSeTyre) {
+        this.bastiiminimal = bastiiminimal;
+        this.numIpakove = numIpakove;
+        this.letratMenimaleParaPerzierjesSeTyre = letratMenimaleParaPerzierjesSeTyre;
+    }
+
+    /**
+     * Table thread run method.
+     */
+
+    @Override
+    public void run() {
+        shoe = new Shoe(numIpakove);
+        shoe.perziej();
+        do {
+            luajBlackjack();
+        } while (numPlayers() > 0);
+    }
+
+   
+
+    private void luajBlackjack() {
+        setup();
+        for (Player player : tabela) {
+            player.startLatchCountDown();
+        }
+        try {
+            placedBetsLatch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        for (Player player : tabela) {
+            player.betLatchCountDown();
+        }
+        jepiLetratFillestare();
+        for (Player player : tabela) {
+            player.dealLatchCountDown();
+        }
+        try {
+            bastiIvedosurIsuranncesLatch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        for (Player player : tabela) {
+            player.bastiIinsurancceLatchCountDown();
+        }
+        try {
+            turnLatch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        for (Player player : tabela) {
+            player.takeTurn(player.originalPlayerHand());
+        }
+        dealerTurn();
+        for (Player player : tabela) {
+            player.dealerTurnLatchCountDown();
+        }
+        try {
+            vazhdoLuajLatch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+   
+//pergadit tabelen per nje raund te ri ne balckjack
+
+    private void setup() {
+        if (shoe.remainingLetras() <= letratMenimaleParaPerzierjesSeTyre) {
+            shoe = new Shoe(numIpakove);
+            shoe.perziej();
+        }
+        dealerHand.clouse();
+        dealerKaBlackjack = false;
+        placedBetsLatch = new CountDownLatch(numPlayers());
+        bastiIvedosurIsuranncesLatch = new CountDownLatch(numPlayers());
+        turnLatch = new CountDownLatch(numPlayers());
+        vazhdoLuajLatch = new CountDownLatch(numPlayers());
+    }
+
+   
+    private void jepiLetratFillestare() {
+        for (int i = 0; i < 2; i++) {
+            dealerHand.shtoLeter(dealLetra());
+            for (Player player : tabela) {
+                player.originalPlayerHand().shtoLeter(dealLetra());
+            }
+        }
+        if (dealerHand.vleraEblackJack() == PIKET_MAKSIMALE) {
+            dealerKaBlackjack = true;
+        }
+    }
+
+    /**
+     * Performs the dealer's turn.
+     */
+
+    private void dealerTurn() {
+        while ((dealerHand.isSoft() && dealerHand.vleraEblackJack() == KUFIRI_HIT_I_DEALER) || dealerHand.vleraEblackJack() < KUFIRI_HIT_I_DEALER) {
+            dealerHand.shtoLeter(dealLetra());
+        }
+    }
+
+   
+
+    public void addPlayer(Player player) {
+        tabela.add(player);
+    }
+
+    
+
+    public void largoLojtarin(Player player) {
+        tabela.remove(player);
+    }
+
+ 
+    public int numPlayers() {
+        return tabela.size();
+    }
+
+   
+
+    public double bastiiminimal() {
+        return bastiiminimal;
+    }
+
+   
+    public boolean dealerKaBlackjack() {
+        return dealerKaBlackjack;
+    }
+
+   
+
+    public Letra letraEhapurEdealer() {
+        return dealerHand.getCard(0);
+    }
+
+ 
+    public BlackJackHand dealerHand() {
+        return dealerHand;
+    }
+
+    /**
+     * Returns a card dealt from the shoe.
+     *
+     * @return a card dealt from the shoe
+     */
+
+    public Letra dealLetra() {
+        if (shoe.remainingLetras() == 0) {
+            shoe = new Shoe(numIpakove);
+            shoe.perziej();
+        }
+        return shoe.dealLetra();
+    }
+
+    /**
+     * Decrements the placed bastis latch.
+     */
+
+    public void placedBetsLatchCountDown() {
+        placedBetsLatch.countDown();
+    }
+
+    /**
+     * Decrements the placed insurance bastis latch.
+     */
+
+    public void bastiIvedosurIsuranncesLatchCountDown() {
+        bastiIvedosurIsuranncesLatch.countDown();
+    }
+
+    /**
+     * Decrements the turn latch.
+     */
+
+    public void turnLatchCountDown() {
+        turnLatch.countDown();
+    }
+
+    /**
+     * Decrements the continue playing latch.
+     */
+
+    public void vazhdoLuajLatchCountDown() {
+        vazhdoLuajLatch.countDown();
+    }
+}
