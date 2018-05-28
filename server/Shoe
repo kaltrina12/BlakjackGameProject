@@ -1,0 +1,54 @@
+package BlackJackServeri;
+
+import java.util.ArrayList;
+import java.util.Collections;
+
+//prezenton nje shoe
+
+
+public class Shoe {
+    private ArrayList<Letra> shoe = new ArrayList<>();   // holds the cards in the shoe
+
+   
+
+    public Shoe(int numDecks) {
+        for (int i = 0; i < numDecks; i++) {
+            shtoPakon(new Deck());
+        }
+    }
+
+   
+
+    private void shtoPakon(Deck pakoja) {
+        for (int i = 0; i < pakoja.size(); i++) {
+            shoe.add(pakoja.dealLetra());
+        }
+    }
+
+   
+    public void perziej() {
+        Collections.shuffle(shoe);
+    }
+
+    /**
+     * Returns the last card in the shoe.
+     *
+     * @return the last card in the shoe
+     */
+
+    public Letra dealLetra() {
+        Letra card = shoe.get(shoe.size() - 1);    // last card in the shoe
+        shoe.remove(card);
+        return card;
+    }
+
+    /**
+     * Returns the number of cards in the shoe.
+     *
+     * @return the number of cards in the shoe
+     */
+
+    public int remainingLetras() {
+        return shoe.size();
+    }
+}
