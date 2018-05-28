@@ -1,0 +1,277 @@
+package BlackjackKlienti;
+
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+
+
+ //Objektet e BlacJackHandPanel jane panele qe permbajne  cards, hand value, basti amount,
+ //hit, stand, split pairs, dhe double down buttonet per nje Blackjack hand.
+
+
+public class BlacJackHandPanel extends JPanel implements ActionListener {
+    private static final Color CARD_TABLE_BLUE = new Color(32, 23, 78);
+    private static final Color NGJYRA_E_TEKSTIT = new Color(230, 230, 230);
+    private static final Dimension DIMENDIMENSIONI_I_BUTONIT = new Dimension(110, 25);
+    private BlackjackKlienti kontrolleri; // client GUI kontrolleri
+    private JPanel paneliIletrave;
+    private JLabel vleraEhanditLbl;
+    private JLabel bastiIhanditiLbl;
+    private JLabel mesazhiIhanditLbl;
+    private JButton butoniHit;
+    private JButton butoniStand;
+    private JButton butoniIndarjesSe2shes;
+    private JButton butoniDoubleDownn;
+
+    
+    public BlacJackHandPanel(BlackjackKlienti kontrolleri) {
+        this.kontrolleri = kontrolleri;
+        setupPanel();
+        setupActionListeners();
+    }
+
+    
+
+    private void setupPanel() {
+        setBackground(CARD_TABLE_BLUE);
+        setLayout(new GridBagLayout());
+        GridBagConstraints constraints = new GridBagConstraints();
+        paneliIletrave = new JPanel();
+        paneliIletrave.setBackground(CARD_TABLE_BLUE);
+        constraints.gridx = 0;
+        constraints.gridy = 0;
+        add(paneliIletrave, constraints);
+        vleraEhanditLbl = new JLabel();
+        vleraEhanditLbl.setForeground(NGJYRA_E_TEKSTIT);
+        constraints.gridy = 1;
+        add(vleraEhanditLbl, constraints);
+        bastiIhanditiLbl = new JLabel();
+        bastiIhanditiLbl.setForeground(NGJYRA_E_TEKSTIT);
+        constraints.gridy = 2;
+        add(bastiIhanditiLbl, constraints);
+        mesazhiIhanditLbl = new JLabel();
+        mesazhiIhanditLbl.setForeground(NGJYRA_E_TEKSTIT);
+        constraints.gridy = 3;
+        add(mesazhiIhanditLbl, constraints);
+        JPanel hitStandButtonsPanel = new JPanel();
+        hitStandButtonsPanel.setBackground(CARD_TABLE_BLUE);
+        butoniHit = new JButton("Hit");
+        butoniHit.setPreferredSize(DIMENDIMENSIONI_I_BUTONIT);
+        butoniHit.setEnabled(false);
+        butoniHit.setVisible(false);
+        butoniStand = new JButton("Stand");
+        butoniStand.setPreferredSize(DIMENDIMENSIONI_I_BUTONIT);
+        butoniStand.setEnabled(false);
+        butoniStand.setVisible(false);
+        hitStandButtonsPanel.add(butoniHit);
+        hitStandButtonsPanel.add(butoniStand);
+        constraints.gridy = 4;
+        add(hitStandButtonsPanel, constraints);
+        JPanel yesNoButtonsPanel = new JPanel();
+        yesNoButtonsPanel.setBackground(CARD_TABLE_BLUE);
+        butoniIndarjesSe2shes = new JButton("Split Pairs");
+        butoniIndarjesSe2shes.setPreferredSize(DIMENDIMENSIONI_I_BUTONIT);
+        butoniIndarjesSe2shes.setEnabled(false);
+        butoniIndarjesSe2shes.setVisible(false);
+        butoniDoubleDownn = new JButton("Double Down");
+        butoniDoubleDownn.setPreferredSize(DIMENDIMENSIONI_I_BUTONIT);
+        butoniDoubleDownn.setEnabled(false);
+        butoniDoubleDownn.setVisible(false);
+        yesNoButtonsPanel.add(butoniIndarjesSe2shes);
+        yesNoButtonsPanel.add(butoniDoubleDownn);
+        constraints.gridy = 5;
+        add(yesNoButtonsPanel, constraints);
+    }
+
+
+    private void setupActionListeners() {
+        butoniHit.addActionListener(this);
+        butoniStand.addActionListener(this);
+        butoniIndarjesSe2shes.addActionListener(this);
+        butoniDoubleDownn.addActionListener(this);
+    }
+
+ 
+
+    private void tregoNdryshimett() {
+        revalidate();
+        repaint();
+        setVisible(true);
+    }
+
+    
+     // Sets the hand vleralabel to the given hand value.
+   
+
+    public void vendosVlerenEhandLbl(String handValue) {
+        vleraEhanditLbl.setText("Hand Value: " + handValue);
+        tregoNdryshimett();
+    }
+
+   
+     // Sets the hand basti label to the given basti.
+   
+
+    public void vendosBastinPerHand(String basti) {
+        bastiIhanditiLbl.setText("Bet: $" + basti);
+        tregoNdryshimett();
+    }
+
+    
+     // Sets the hand message label to the given message.
+   
+
+    public void vendosHandMesazhinLbl(String message) {
+        mesazhiIhanditLbl.setText(message);
+        tregoNdryshimett();
+    }
+
+    
+     //Sets the hand message label to the error message.
+     
+     
+
+    public void ktheGabim() {
+        vendosHandMesazhinLbl("ERROR");
+        tregoNdryshimett();
+    }
+
+    
+    // Enables the hit and stand buttons.
+    
+
+    public void mundesoHitDheStand() {
+        mundesoHitButonin(true);
+        mundesoStandButonin(true);
+        tregoNdryshimett();
+    }
+
+    
+     // Adds a given JLabel containing the image of a card to the cards panel.
+     
+
+    public void shtoLeter(JLabel letraLbl) {
+        paneliIletrave.add(letraLbl);
+        tregoNdryshimett();
+    }
+
+    /**
+     * Sets the hand message label to the deshtimed message.
+     */
+
+    public void deshtim() {
+        vendosHandMesazhinLbl("You deshtimed.");
+        tregoNdryshimett();
+    }
+
+    /**
+     * Enables the split pairs button.
+     */
+
+    public void mundesoNdarhenE2shes() {
+        mundesoNdarhenE2shesButton(true);
+        tregoNdryshimett();
+    }
+
+    /**
+     * Enables the double down button.
+     */
+
+    public void mundesoDoubleDown() {
+        mundesoDoubleDownButton(true);
+        tregoNdryshimett();
+    }
+
+    /**
+     * Sets the hand message label to the double down success message.
+     */
+
+    public void doublingDownIsuksesshem() {
+        vendosHandMesazhinLbl("Your basti on this hand has been doubled.");
+        tregoNdryshimett();
+    }
+
+    /**
+     * Removes the face-down card added after doubling down.
+     */
+
+    public void largoDoubleDownLetrenEfshehur() {
+        paneliIletrave.remove(paneliIletrave.getComponent(2));
+        tregoNdryshimett();
+    }
+
+    /**
+     * Enables and shows or disables and hides the hit button.
+     *
+     * @param b If true, enables and shows the hit button; otherwise, disables and hides the hit button
+     */
+
+    private void mundesoHitButonin(Boolean b) {
+        butoniHit.setEnabled(b);
+        butoniHit.setVisible(b);
+        tregoNdryshimett();
+    }
+
+    /**
+     * Enables and shows or disables and hides the stand button.
+     */
+
+    private void mundesoStandButonin(Boolean b) {
+        butoniStand.setEnabled(b);
+        butoniStand.setVisible(b);
+        tregoNdryshimett();
+    }
+
+    /**
+     * Enables and shows or disables and hides the split pairs button.
+     */
+
+    private void mundesoNdarhenE2shesButton(Boolean b) {
+        butoniIndarjesSe2shes.setEnabled(b);
+        butoniIndarjesSe2shes.setVisible(b);
+        tregoNdryshimett();
+    }
+
+    /**
+     * Enables and shows or disables and hides the double down button.
+     *
+     * @param b If true, enables and shows the double down button; otherwise, disables and hides the double down button
+     */
+
+    private void mundesoDoubleDownButton(Boolean b) {
+        butoniDoubleDownn.setEnabled(b);
+        butoniDoubleDownn.setVisible(b);
+        tregoNdryshimett();
+    }
+
+    /**
+     * Invoked when an action occurs.
+     *
+     * @param e Event generated by component action
+     */
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        Object target = e.getSource();
+        if(target == butoniHit) {
+            kontrolleri.dergoMesazhKlientit(butoniHit.getText());
+        } else if (target == butoniStand) {
+            kontrolleri.dergoMesazhKlientit(butoniStand.getText());
+        } else if (target == butoniIndarjesSe2shes) {
+            kontrolleri.dergoMesazhKlientit(butoniIndarjesSe2shes.getText());
+        } else if (target == butoniDoubleDownn) {
+            kontrolleri.dergoMesazhKlientit(butoniDoubleDownn.getText());
+        }
+        mundesoHitButonin(false);
+        mundesoStandButonin(false);
+        mundesoNdarhenE2shesButton(false);
+        mundesoDoubleDownButton(false);
+    }
+}
