@@ -1,0 +1,120 @@
+package BlackjackKlienti;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.util.ArrayList;
+
+import javax.imageio.ImageIO;
+import javax.swing.ImageIcon;
+import javax.swing.JLabel;
+
+
+ //permban info te clientit
+ 
+
+public class BlackjackKlientiModel {
+    private static final int KOHA_E_PRITJES_SE_MESAZHEVE_ = 900;                           
+    private Socket socket;                                                      // socket ne server adrese dhe port
+    private BufferedReader in;                                                  // in to server
+    private PrintWriter out;                                                    // out from server
+    private ArrayList<BlacJackHandPanel> panelatEhanditTeLojtarit = new ArrayList<>(); 
+
+   
+
+    public BlackjackKlientiModel(String serverAdresa, int portServeri) {
+        try {
+            socket = new Socket(serverAdresa, portServeri);
+        } catch (IOException e) {
+            System.err.println("No Blackjack server running on port " + portServeri + " at address " + serverAdresa);
+            System.exit(1);
+        }
+        try {
+            InputStreamReader insr = new InputStreamReader(socket.getInputStream());    // input stream reader from socket
+            in = new BufferedReader(insr);
+            out = new PrintWriter(socket.getOutputStream(), true);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+ //merr mesazh prej serverit
+
+    public String merrMesazhinEserverit() {
+        String mesazhiIserverit = null;
+        try {
+            Thread.sleep(KOHA_E_PRITJES_SE_MESAZHEVE_);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        while (mesazhiIserverit == null) {
+            try {
+                mesazhiIserverit = in.readLine();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        return mesazhiIserverit;
+    }
+
+   //dergon mesazh ne server
+
+    public void dergoMesazhKlientit(String mesazhiIclientit) {
+        out.println(mesazhiIclientit);
+    }
+
+   
+// e shton ni BlacJackHandPanel  ne playerHandPanel ne indeksin e dhene
+   
+    public void shtoLojtaritHandPanelin(int index, BlacJackHandPanel playerHandPanel) {
+        panelatEhanditTeLojtarit.add(index, playerHandPanel);
+    }
+
+    
+     // e rikthen BlacJackHandPanel ne panelatEhanditTeLojtarit ne indexin e dhene
+   
+    public BlacJackHandPanel merrLojtaritHandPanelin(int index) {
+        return panelatEhanditTeLojtarit.get(index);
+    }
+
+    
+    //e heq ni BlacJackHandPanel ne panelatEhanditTeLojtarit ne indeksin e dhene
+     
+
+    public void largoLojtaritHandPanelin(int index) {
+        panelatEhanditTeLojtarit.remove(index);
+    }
+
+ 
+    //e kthen ni JLabel qe permban imazhet e letrave me emrat e tyre
+
+    public JLabel merrImazhinEletresLbl(String cardName) {
+        JLabel letraLbl = null;    // label containing image of card
+        try {
+            letraLbl = new JLabel(new ImageIcon(ImageIO.read(getClass().getResourceAsStream(cardName + ".png"))));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return letraLbl;
+    }
+
+   //reseton modelin
+
+    public void rifillo(){
+        panelatEhanditTeLojtarit.clear();
+    }
+
+    
+//dergon mesazh serverit per me dal prej lojes edhe e mbyll soketin
+    public void dilNgaLoja() {
+        dergoMesazhKlientit("CLIENTMESSAGE--QUITGAME");
+        try {
+            socket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        System.exit(0);
+    }
+}
