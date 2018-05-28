@@ -1,0 +1,119 @@
+package BlackJackServeri;
+
+// Objektet e BlackJackHand prezantojne nje hand of cards ne Blackjack.
+
+
+public class BlackJackHand extends Hand {
+   private double basti;                 // amount of parate basti on hand
+   private boolean ndajDyshet = false; // true if player decides to split pairs, false if does not
+   private boolean doublingDown = false; // true if player decides to double down, false if does not
+   private Letra doublingDownLetra;        // card added to hand face down after double down
+
+  
+    // Returns the vleraof the hand with aces counting as
+    //either 1 or 11 depending on whether or not the hand
+    //is soft.
+
+
+   public int vleraEblackJack() {
+       int vlera= 0;  // vleraof the hand in Blackjack
+       for (Letra card : hand) {
+           vlera+= card.value();
+       }
+       if (isSoft()) {
+           vlera+= 10;
+       }
+       return vlera;
+   }
+
+   
+    // Returns whether or not the hand contains an ace.
+   
+
+   private boolean kaPike() {
+       for (Letra card : hand) {
+           if (card.value() == 1) {
+               return true;
+           }
+       }
+       return false;
+   }
+
+   
+    // Returns whether or not the hand is soft.
+   
+
+   public boolean isSoft() {
+       return kaPike() && value() < 12;
+   }
+
+   
+    // Places a basti on the hand.
+    
+   
+
+   public void BejeBastin(double basti) {
+       this.basti = basti;
+   }
+
+    // Returns the basti placed on the hand.
+
+
+   public double basti() {
+       return basti;
+   }
+
+   
+    //Sets the hand as split.
+  
+
+   public void vendosiPaletPerNdarje() {
+       ndajDyshet = true;
+   }
+
+  
+    // Returns whether or not the hand has been split.
+   
+
+   public boolean ndajDyshet() {
+       return ndajDyshet;
+   }
+
+   //Sets the hand as doubled down.
+
+   public void setDoubleDown() {
+       doublingDown = true;
+   }
+
+
+  //Returns whether or not the hand has been doubled down.
+
+
+   public boolean doublingDown() {
+       return doublingDown;
+   }
+
+   
+    // Adds a single card to the hand after doubling down.
+   
+
+   public void shtoDoubleDownLetren(Letra card) {
+       doublingDownLetra = card;
+       shtoLeter(card);
+   }
+
+  
+    // Returns the card added to the hand after doubling down.
+   
+
+   public Letra doublingDownLetra() {
+       return doublingDownLetra;
+   }
+
+
+public Letra getCard(int i) {
+	// TODO Auto-generated method stub
+	return null;
+}
+}
+
